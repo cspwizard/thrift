@@ -343,6 +343,7 @@ string t_netstd_generator::netstd_type_usings() const
         "using System.IO;\n"
         "using System.Threading;\n"
         "using System.Threading.Tasks;\n"
+        "using Microsoft.Extensions.Logging;\n"
         "using Thrift;\n"
         "using Thrift.Collections;\n";
 
@@ -1356,8 +1357,8 @@ void t_netstd_generator::generate_netstd_union_class(ostream& out, t_struct* tun
     indent_down();
     out << indent() << "}" << endl
         << endl;
-    
-    
+
+
     out << indent() << "public class " << tfield->get_name() << " : " << tunion->get_name() << endl
         << indent() << "{" << endl;
     indent_up();
@@ -1496,7 +1497,7 @@ void t_netstd_generator::generate_netstd_struct_hashcode(ostream& out, t_struct*
         else
         {
             out << prop_name((*f_iter)) << ".GetHashCode()";
-        }	
+        }
         out << ";" << endl;
 
         if (!field_is_required((*f_iter)))
@@ -1758,8 +1759,9 @@ void t_netstd_generator::generate_service_server(ostream& out, t_service* tservi
     indent_up();
 
     out << indent() << "private IAsync _iAsync;" << endl
+        << indent() << "private readonly ILogger<AsyncProcessor> _logger;" << endl
         << endl
-        << indent() << "public AsyncProcessor(IAsync iAsync)";
+        << indent() << "public AsyncProcessor(IAsync iAsync, ILogger<AsyncProcessor> logger = default)";
 
     if (!extends.empty())
     {
@@ -1770,10 +1772,8 @@ void t_netstd_generator::generate_service_server(ostream& out, t_service* tservi
         << indent() << "{" << endl;
     indent_up();
 
-    out << indent() << "if (iAsync == null) throw new ArgumentNullException(nameof(iAsync));" << endl
-        << endl
-        << indent() << "_iAsync = iAsync;" << endl;
-
+    out << indent() << "_iAsync = iAsync ?? throw new ArgumentNullException(nameof(iAsync));" << endl
+        << indent() << "_logger = logger;" << endl;
     for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter)
     {
         string function_name = (*f_iter)->get_name();
@@ -2005,8 +2005,7 @@ void t_netstd_generator::generate_process_function_async(ostream& out, t_service
         << indent() << "{" << endl;
     indent_up();
 
-    out << indent() << "Console.Error.WriteLine(\"Error occurred in processor:\");" << endl
-        << indent() << "Console.Error.WriteLine(ex.ToString());" << endl;
+    out << indent() << "_logger?.LogError(ex, $\"Error occurred in {GetType().FullName}: {ex.Message}\");" << endl;
 
     if (tfunction->is_oneway())
     {
