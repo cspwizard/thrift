@@ -865,17 +865,6 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
     out << indent() << "def __delattr__(self, *args):" << endl
         << indent() << indent_str() << "raise TypeError(\"can't modify immutable instance\")" << endl
         << endl;
-
-    // Hash all of the members in order, and also hash in the class
-    // to avoid collisions for stuff like single-field structures.
-    out << indent() << "def __hash__(self):" << endl
-        << indent() << indent_str() << "return hash(self.__class__) ^ hash((";
-
-    for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-      out << "self." << (*m_iter)->get_name() << ", ";
-    }
-
-    out << "))" << endl;
   }
 
   if (!gen_dynamic_) {
@@ -946,6 +935,17 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
 
     out << indent() << "def __ne__(self, other):" << endl
         << indent() << indent_str() << "return not (self == other)" << endl;
+
+    // Hash all of the members in order, and also hash in the class
+    // to avoid collisions for stuff like single-field structures.
+    out << indent() << "def __hash__(self):" << endl
+        << indent() << indent_str() << "return hash(self.__class__) ^ hash((";
+
+    for (m_iter = sorted_members.begin(); m_iter != sorted_members.end(); ++m_iter) {
+      out << "self." << (*m_iter)->get_name() << ", ";
+    }
+
+    out << "))" << endl;
   }
   indent_down();
 }
