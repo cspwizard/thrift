@@ -52,6 +52,7 @@ t_netstd_generator::t_netstd_generator(t_program* program, const map<string, str
 {
     (void)option_string;
     suppress_deepcopy = false;
+    add_async_postfix = false;
     use_pascal_case_properties = false;
     union_ = false;
     serialize_ = false;
@@ -80,24 +81,15 @@ t_netstd_generator::t_netstd_generator(t_program* program, const map<string, str
         else if (iter->first.compare("no_deepcopy") == 0) {
           suppress_deepcopy = true;
         }
+        else if (iter->first.compare("async_postfix") == 0) {
+          add_async_postfix = true;
+        }
         else {
           throw "unknown option netstd:" + iter->first;
         }
     }
 
     out_dir_base_ = "gen-netstd";
-}
-
-static string correct_function_name_for_async(string const& function_name)
-{
-    string const async_end = "Async";
-    size_t i = function_name.find(async_end);
-    if (i != string::npos)
-    {
-        return function_name + async_end;
-    }
-
-    return function_name;
 }
 
 /**
@@ -191,11 +183,12 @@ void t_netstd_generator::init_generator()
     }
 
     pverbose(".NET Standard options:\n");
-    pverbose("- union ......... %s\n", (is_union_enabled() ? "ON" : "off"));
-    pverbose("- serialize ..... %s\n", (is_serialize_enabled() ? "ON" : "off"));
-    pverbose("- wcf ........... %s\n", (is_wcf_enabled() ? "ON" : "off"));
-    pverbose("- pascal ........ %s\n", (use_pascal_case_properties ? "ON" : "off"));
-    pverbose("- no_deepcopy ... %s\n", (suppress_deepcopy ? "ON" : "off"));
+    pverbose("- union ........... %s\n", (is_union_enabled() ? "ON" : "off"));
+    pverbose("- serialize ....... %s\n", (is_serialize_enabled() ? "ON" : "off"));
+    pverbose("- wcf ............. %s\n", (is_wcf_enabled() ? "ON" : "off"));
+    pverbose("- pascal .......... %s\n", (use_pascal_case_properties ? "ON" : "off"));
+    pverbose("- no_deepcopy ..... %s\n", (suppress_deepcopy ? "ON" : "off"));
+    pverbose("- async_postfix ... %s\n", (add_async_postfix ? "ON" : "off"));
 }
 
 string t_netstd_generator::normalize_name(string name)
@@ -667,7 +660,7 @@ string t_netstd_generator::render_const_value(ostream& out, string name, t_type*
     }
     else if (type->is_enum())
     {
-        render << type->get_name() << "." << value->get_identifier_name();
+        render << type_name(type) << "." << value->get_identifier_name();
     }
     else
     {
@@ -1926,6 +1919,7 @@ void t_netstd_generator::generate_service_interface(ostream& out, t_service* tse
         out << indent() << "[ServiceContract(Namespace=\"" << wcf_namespace_ << "\")]" << endl;
     }
 
+    prepare_member_name_mapping(tservice);
     out << indent() << "public interface IAsync" << extends_iface << endl
         << indent() << "{" << endl;
 
@@ -1949,10 +1943,21 @@ void t_netstd_generator::generate_service_interface(ostream& out, t_service* tse
             }
         }
 
+        auto iter = (*f_iter)->annotations_.find("deprecated");
+        if( (*f_iter)->annotations_.end() != iter) {
+          out << indent() << "[Obsolete";
+          // empty annotation values end up with "1" somewhere, ignore these as well
+          if ((iter->second.length() > 0) && (iter->second != "1")) {
+            out << "(" << make_csharp_string_literal(iter->second) << ")";
+          }
+          out << "]" << endl;
+        }
+
         out << indent() << function_signature_async(*f_iter) << ";" << endl << endl;
     }
     indent_down();
     out << indent() << "}" << endl << endl;
+    cleanup_member_name_mapping(tservice);
 }
 
 void t_netstd_generator::generate_service_helpers(ostream& out, t_service* tservice)
@@ -1960,6 +1965,7 @@ void t_netstd_generator::generate_service_helpers(ostream& out, t_service* tserv
     vector<t_function*> functions = tservice->get_functions();
     vector<t_function*>::iterator f_iter;
 
+    prepare_member_name_mapping(tservice);
     out << indent() << "public class InternalStructs" << endl;
     out << indent() << "{" << endl;
     indent_up();
@@ -1974,6 +1980,7 @@ void t_netstd_generator::generate_service_helpers(ostream& out, t_service* tserv
 
     indent_down();
     out << indent() << "}" << endl << endl;
+    cleanup_member_name_mapping(tservice);
 }
 
 void t_netstd_generator::generate_service_client(ostream& out, t_service* tservice)
@@ -1993,7 +2000,7 @@ void t_netstd_generator::generate_service_client(ostream& out, t_service* tservi
     out << endl;
 
     generate_netstd_doc(out, tservice);
-
+    prepare_member_name_mapping(tservice);
     out << indent() << "public class Client : " << extends_client << "IAsync" << endl
         << indent() << "{" << endl;
     indent_up();
@@ -2011,7 +2018,8 @@ void t_netstd_generator::generate_service_client(ostream& out, t_service* tservi
 
     for (functions_iterator = functions.begin(); functions_iterator != functions.end(); ++functions_iterator)
     {
-        string function_name = correct_function_name_for_async((*functions_iterator)->get_name());
+        string raw_func_name = (*functions_iterator)->get_name();
+        string function_name = raw_func_name + (add_async_postfix ? "Async" : "");
 
         // async
         out << indent() << "public async " << function_signature_async(*functions_iterator, "") << endl
@@ -2020,7 +2028,7 @@ void t_netstd_generator::generate_service_client(ostream& out, t_service* tservi
 
         string argsname = (*functions_iterator)->get_name() + "Args";
 
-        out << indent() << "await OutputProtocol.WriteMessageBeginAsync(new TMessage(\"" << function_name
+        out << indent() << "await OutputProtocol.WriteMessageBeginAsync(new TMessage(\"" << raw_func_name
             << "\", TMessageType." << ((*functions_iterator)->is_oneway() ? "Oneway" : "Call") 
             << ", SeqId), cancellationToken);" << endl
             << indent() << endl
@@ -2104,7 +2112,7 @@ void t_netstd_generator::generate_service_client(ostream& out, t_service* tservi
                     << function_name << " failed: unknown result\");" << endl;
             }
 
-            cleanup_member_name_mapping((*functions_iterator)->get_xceptions());
+            cleanup_member_name_mapping(xs);
             indent_down();
             out << indent() << "}" << endl << endl;
         }
@@ -2113,10 +2121,13 @@ void t_netstd_generator::generate_service_client(ostream& out, t_service* tservi
             indent_down();
             out << indent() << "}" << endl;
         }
+
+        cleanup_member_name_mapping(arg_struct);
     }
 
     indent_down();
     out << indent() << "}" << endl << endl;
+    cleanup_member_name_mapping(tservice);
 }
 
 void t_netstd_generator::generate_service_server(ostream& out, t_service* tservice)
@@ -2132,6 +2143,7 @@ void t_netstd_generator::generate_service_server(ostream& out, t_service* tservi
         extends_processor = extends + ".AsyncProcessor, ";
     }
 
+    prepare_member_name_mapping(tservice);
     out << indent() << "public class AsyncProcessor : " << extends_processor << "ITAsyncProcessor" << endl
         << indent() << "{" << endl;
 
@@ -2155,8 +2167,8 @@ void t_netstd_generator::generate_service_server(ostream& out, t_service* tservi
     out << indent() << "_logger = logger;" << endl;
     for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter)
     {
-        string function_name = (*f_iter)->get_name();
-        out << indent() << "processMap_[\"" << correct_function_name_for_async(function_name) << "\"] = " << function_name << "_ProcessAsync;" << endl;
+        string raw_func_name = (*f_iter)->get_name();
+        out << indent() << "processMap_[\"" << raw_func_name << "\"] = " << raw_func_name << "_ProcessAsync;" << endl;
     }
 
     indent_down();
@@ -2243,6 +2255,7 @@ void t_netstd_generator::generate_service_server(ostream& out, t_service* tservi
 
     indent_down();
     out << indent() << "}" << endl << endl;
+    cleanup_member_name_mapping(tservice);
 }
 
 void t_netstd_generator::generate_function_helpers(ostream& out, t_function* tfunction)
@@ -2309,13 +2322,18 @@ void t_netstd_generator::generate_process_function_async(ostream& out, t_service
     const vector<t_field*>& fields = arg_struct->get_members();
     vector<t_field*>::const_iterator f_iter;
 
+    bool is_deprecated = (tfunction->annotations_.end() != tfunction->annotations_.find("deprecated"));
+    if( is_deprecated) {
+      out << indent() << "#pragma warning disable CS0618,CS0612" << endl; 
+    }
+
     out << indent();
     if (!tfunction->is_oneway() && !tfunction->get_returntype()->is_void())
     {
         out << "result.Success = ";
     }
 
-    out << "await _iAsync." << normalize_name(tfunction->get_name()) << "Async(";
+    out << "await _iAsync." << func_name(normalize_name(tfunction->get_name()) + (add_async_postfix ? "Async" : "")) << "(";
 
     bool first = true;
     collect_extensions_types(arg_struct);
@@ -2342,6 +2360,10 @@ void t_netstd_generator::generate_process_function_async(ostream& out, t_service
     }
 
     out << "cancellationToken);" << endl;
+
+    if( is_deprecated) {
+      out << indent() << "#pragma warning restore CS0618,CS0612" << endl; 
+    }
 
     vector<t_field*>::const_iterator x_iter;
 
@@ -2370,7 +2392,7 @@ void t_netstd_generator::generate_process_function_async(ostream& out, t_service
     if (!tfunction->is_oneway())
     {
         out << indent() << "await oprot.WriteMessageBeginAsync(new TMessage(\""
-                << correct_function_name_for_async(tfunction->get_name()) << "\", TMessageType.Reply, seqid), cancellationToken); " << endl
+                << tfunction->get_name() << "\", TMessageType.Reply, seqid), cancellationToken); " << endl
             << indent() << "await result.WriteAsync(oprot, cancellationToken);" << endl;
     }
     indent_down();
@@ -2404,7 +2426,7 @@ void t_netstd_generator::generate_process_function_async(ostream& out, t_service
     else
     {
         out << indent() << "var x = new TApplicationException(TApplicationException.ExceptionType.InternalError,\" Internal error.\");" << endl
-            << indent() << "await oprot.WriteMessageBeginAsync(new TMessage(\"" << correct_function_name_for_async(tfunction->get_name())
+            << indent() << "await oprot.WriteMessageBeginAsync(new TMessage(\"" << tfunction->get_name()
             << "\", TMessageType.Exception, seqid), cancellationToken);" << endl
             << indent() << "await x.WriteAsync(oprot, cancellationToken);" << endl;
         indent_down();
@@ -2944,6 +2966,30 @@ void t_netstd_generator::generate_netstd_property(ostream& out, t_field* tfield,
     out << endl;
 }
 
+string t_netstd_generator::make_csharp_string_literal( string const& value)
+{
+  if (value.length() == 0) {
+    return "";
+  }
+
+  std::stringstream result;
+  result << "\"";
+  for (signed char const c: value) {
+    if( (c >= 0) && (c < 32)) {  // convert ctrl chars, but leave UTF-8 alone
+      int width = std::max( (int)sizeof(c), 4);
+      result << "\\x" << std::hex << std::setw(width) << std::setfill('0') << (int)c;
+    } else if ((c == '\\') || (c == '"')) {
+      result << "\\" << c;
+    } else {
+      result << c;   // anything else "as is"
+    }
+  }
+  result << "\"";
+  
+  return result.str();
+}
+
+
 string t_netstd_generator::make_valid_csharp_identifier(string const& fromName)
 {
     string str = fromName;
@@ -3007,12 +3053,17 @@ string t_netstd_generator::get_mapped_member_name(string name)
     return name;
 }
 
+void t_netstd_generator::prepare_member_name_mapping(t_service* tservice)
+{
+    prepare_member_name_mapping(tservice, tservice->get_functions(), tservice->get_name());
+}
+
 void t_netstd_generator::prepare_member_name_mapping(t_struct* tstruct)
 {
     prepare_member_name_mapping(tstruct, tstruct->get_members(), tstruct->get_name());
 }
 
-void t_netstd_generator::prepare_member_name_mapping(void* scope, const vector<t_field*>& members, const string& structname)
+void t_netstd_generator::prepare_member_name_mapping(t_struct* scope, const vector<t_field*>& members, const string& structname)
 {
     // begin new scope
     member_mapping_scopes.emplace_back();
@@ -3025,11 +3076,9 @@ void t_netstd_generator::prepare_member_name_mapping(void* scope, const vector<t
     std::set<string> used_member_names;
     vector<t_field*>::const_iterator iter;
 
-    // prevent name conflicts with struct (CS0542 error)
+    // prevent name conflicts with struct (CS0542 error + THRIFT-2942)
     used_member_names.insert(structname);
     used_member_names.insert("Isset");
-
-    // prevent name conflicts with known methods (THRIFT-2942)
     used_member_names.insert("Read");
     used_member_names.insert("Write");
 
@@ -3050,6 +3099,51 @@ void t_netstd_generator::prepare_member_name_mapping(void* scope, const vector<t
             // add always, this helps us to detect edge cases like
             // different spellings ("foo" and "Foo") within the same struct
             pverbose("struct %s: member mapping %s => %s\n", structname.c_str(), oldname.c_str(), newname.c_str());
+            active.mapping_table[oldname] = newname;
+            used_member_names.insert(newname);
+            break;
+        }
+    }
+}
+
+
+void t_netstd_generator::prepare_member_name_mapping(t_service* scope, const vector<t_function*>& members, const string& structname)
+{
+    // begin new scope
+    member_mapping_scopes.emplace_back();
+    member_mapping_scope& active = member_mapping_scopes.back();
+    active.scope_member = scope;
+
+    // current C# generator policy:
+    // - prop names are always rendered with an Uppercase first letter
+    // - struct names are used as given
+    std::set<string> used_member_names;
+    vector<t_function*>::const_iterator iter;
+
+    // prevent name conflicts with service/intf
+    used_member_names.insert(structname);
+    used_member_names.insert("Client");
+    used_member_names.insert("IAsync");
+    used_member_names.insert("AsyncProcessor");
+    used_member_names.insert("InternalStructs");
+
+    for (iter = members.begin(); iter != members.end(); ++iter)
+    {
+        string oldname = (*iter)->get_name();
+        string newname = func_name(*iter, true);
+        while (true)
+        {
+            // new name conflicts with another method
+            if (used_member_names.find(newname) != used_member_names.end())
+            {
+                pverbose("service %s: method %s conflicts with another method\n", structname.c_str(), newname.c_str());
+                newname += '_';
+                continue;
+            }
+
+            // add always, this helps us to detect edge cases like
+            // different spellings ("foo" and "Foo") within the same service
+            pverbose("service %s: method mapping %s => %s\n", structname.c_str(), oldname.c_str(), newname.c_str());
             active.mapping_table[oldname] = newname;
             used_member_names.insert(newname);
             break;
@@ -3097,6 +3191,18 @@ string t_netstd_generator::prop_name(t_field* tfield, bool suppress_mapping) {
   }
 
   return name;
+}
+
+string t_netstd_generator::func_name(t_function* tfunc, bool suppress_mapping) {
+  return func_name(tfunc->get_name(), suppress_mapping);
+}
+
+string t_netstd_generator::func_name(std::string fname, bool suppress_mapping) {
+  if (suppress_mapping) {
+    return fname;
+  }
+
+  return get_mapped_member_name(fname);
 }
 
 string t_netstd_generator::type_name(t_type* ttype)
@@ -3259,7 +3365,7 @@ string t_netstd_generator::declare_field(t_field* tfield, bool init, string pref
 string t_netstd_generator::function_signature(t_function* tfunction, string prefix)
 {
     t_type* ttype = tfunction->get_returntype();
-    return type_name(ttype) + " " + normalize_name(prefix + tfunction->get_name()) + "(" + argument_list(tfunction->get_arglist()) + ")";
+    return type_name(ttype) + " " + func_name(normalize_name(prefix + tfunction->get_name())) + "(" + argument_list(tfunction->get_arglist()) + ")";
 }
 
 string t_netstd_generator::function_signature_async(t_function* tfunction, string prefix)
@@ -3271,7 +3377,7 @@ string t_netstd_generator::function_signature_async(t_function* tfunction, strin
         task += "<" + type_name(ttype) + ">";
     }
 
-    string result = task + " " + normalize_name(prefix + tfunction->get_name()) + "Async(";
+    string result = task + " " + func_name(normalize_name(prefix + tfunction->get_name()) + (add_async_postfix ? "Async" : "")) + "(";
     string args = argument_list(tfunction->get_arglist());
     result += args;
     if (!args.empty())
@@ -3458,4 +3564,5 @@ THRIFT_REGISTER_GENERATOR(
     "    union:           Use new union typing, which includes a static read function for union types.\n"
     "    pascal:          Generate Pascal Case property names according to Microsoft naming convention.\n"
     "    no_deepcopy:     Suppress generation of DeepCopy() method.\n"
+    "    async_postfix:   Append \"Async\" to all service methods (maintains compatibility with existing code).\n"
 )

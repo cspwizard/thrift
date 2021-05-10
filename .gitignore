@@ -198,14 +198,12 @@ project.lock.json
 /lib/dart/**/packages
 /lib/dart/**/.pub/
 /lib/dart/**/pubspec.lock
-/lib/delphi/test/skip/*.request
-/lib/delphi/test/skip/*.response
+/lib/delphi/test/skip/bin
 /lib/delphi/test/serializer/*.dat
 /lib/delphi/**/*.identcache
 /lib/delphi/**/*.local
 /lib/delphi/**/*.dcu
 /lib/delphi/**/*.2007
-/lib/delphi/**/*.dproj
 /lib/delphi/**/codegen/*.bat
 /lib/erl/_build/
 /lib/erl/.eunit
@@ -299,6 +297,17 @@ project.lock.json
 /lib/rs/test/src/recursive.rs
 /lib/rs/test/src/ultimate.rs
 /lib/rs/test/src/identifiers.rs
+/lib/rs/test_recursive/Cargo.lock
+/lib/rs/test_recursive/src/vehicles.rs
+/lib/rs/test_recursive/src/maintenance/maintenance_facility.rs
+/lib/rs/test_recursive/src/transit/buses.rs
+/lib/rs/test_recursive/src/transit/trains.rs
+/lib/rs/test_recursive/src/transit/transporters.rs
+/lib/rs/test_recursive/src/transit/light/light_rail.rs
+/lib/rs/test_recursive/src/transit/light/streetcars.rs
+/lib/rs/test_recursive/src/transit/services/city_services.rs
+/lib/rs/test_recursive/target/
+/lib/rs/test_recursive/bin/
 /lib/rs/*.iml
 /lib/rs/**/*.iml
 /lib/swift/.build
@@ -344,6 +353,7 @@ project.lock.json
 /test/go/src/gen/
 /test/go/src/thrift
 /test/haxe/bin
+/test/haxe/.buildtemp
 /test/hs/TestClient
 /test/hs/TestServer
 /test/php/php_ext_dir/
@@ -416,5 +426,7 @@ project.lock.json
 /tutorial/rs/Cargo.lock
 /tutorial/netstd/Interfaces/shared
 /tutorial/netstd/Interfaces/tutorial
+/tutorial/netstd/Server/Properties/launchSettings.json
+/tutorial/netstd/Client/Properties/launchSettings.json
 /ylwrap
 

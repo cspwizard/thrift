@@ -197,7 +197,7 @@ end;
 
 function TMsxmlHTTPClientImpl.GetIsOpen: Boolean;
 begin
-  Result := True;
+  Result := Assigned(FOutputStream);
 end;
 
 procedure TMsxmlHTTPClientImpl.Open;
@@ -256,6 +256,7 @@ begin
     xmlhttp.send( IUnknown( TStreamAdapter.Create( ms, soReference )));
     FInputStream := nil;
     FInputStream := TThriftStreamAdapterCOM.Create( IUnknown( xmlhttp.responseStream) as IStream);
+    ResetConsumedMessageSize;
     UpdateKnownMessageSize( FInputStream.Size);
   finally
     ms.Free;
@@ -264,7 +265,9 @@ end;
 
 procedure TMsxmlHTTPClientImpl.Write( const pBuf : Pointer; off, len : Integer);
 begin
-  FOutputStream.Write( pBuf, off, len);
+  if FOutputStream <> nil
+  then FOutputStream.Write( pBuf, off, len)
+  else raise TTransportExceptionNotOpen.Create('Transport closed');
 end;
 
 

@@ -17,6 +17,7 @@
 
 using System;
 using System.IO.Pipes;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,7 +40,7 @@ namespace Thrift.Transport.Client
             var serverName = string.IsNullOrWhiteSpace(server) ? server : ".";
             ConnectTimeout = (timeout > 0) ? timeout : Timeout.Infinite;
 
-            PipeStream = new NamedPipeClientStream(serverName, pipe, PipeDirection.InOut, PipeOptions.None);
+            PipeStream = new NamedPipeClientStream(serverName, pipe, PipeDirection.InOut, PipeOptions.None, TokenImpersonationLevel.Anonymous);
         }
 
         public override bool IsOpen => PipeStream != null && PipeStream.IsConnected;
@@ -72,10 +73,10 @@ namespace Thrift.Transport.Client
             }
 
             CheckReadBytesAvailable(length);
-#if NETSTANDARD2_1
-            var numRead = await PipeStream.ReadAsync(new Memory<byte>(buffer, offset, length), cancellationToken);
-#else
+#if NETSTANDARD2_0
             var numRead = await PipeStream.ReadAsync(buffer, offset, length, cancellationToken);
+#else
+            var numRead = await PipeStream.ReadAsync(new Memory<byte>(buffer, offset, length), cancellationToken);
 #endif
             CountConsumedMessageBytes(numRead);
             return numRead;
@@ -94,7 +95,11 @@ namespace Thrift.Transport.Client
             var nBytes = Math.Min(15 * 4096, length); // 16 would exceed the limit
             while (nBytes > 0)
             {
+#if NETSTANDARD2_0
                 await PipeStream.WriteAsync(buffer, offset, nBytes, cancellationToken);
+#else
+                await PipeStream.WriteAsync(buffer.AsMemory(offset, nBytes), cancellationToken);
+#endif
                 offset += nBytes;
                 length -= nBytes;
                 nBytes = Math.Min(nBytes, length);

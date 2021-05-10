@@ -70,12 +70,6 @@ AC_ARG_VAR([PERL_PREFIX], [Prefix for installing Perl modules.
                            Default = "/usr/local/lib"])
 AS_IF([test "x$PERL_PREFIX" = x], [PERL_PREFIX="/usr/local"])
 
-AC_ARG_VAR([CABAL_CONFIGURE_FLAGS],
-           [Extra flags to pass to cabal: "cabal Setup.lhs configure $CABAL_CONFIGURE_FLAGS".
-            (Typically used to set --user or force --global.)])
-
-AC_SUBST(CABAL_CONFIGURE_FLAGS)
-
 AC_ARG_VAR([D_IMPORT_PREFIX], [Prefix for installing D modules.
                            [INCLUDEDIR/d2]])
 AS_IF([test "x$D_IMPORT_PREFIX" = x], [D_IMPORT_PREFIX="${includedir}/d2"])
@@ -123,7 +117,6 @@ if test "$enable_libs" = "no"; then
   with_python="no"
   with_py3="no"
   with_ruby="no"
-  with_haskell="no"
   with_haxe="no"
   with_netstd="no"
   with_perl="no"
@@ -227,15 +220,9 @@ if test "$with_erlang" = "yes";  then
   if test -n "$ERL" -a -n "$ERLC" && test "x$REBAR" != "x" ; then
     have_erlang="yes"
 
-    # otp_release is simply a number (like "17") for OTP17+ while "R16..." for OTP16 or less.
-    # OTP version is currently only used for running tests.
-    if $ERL -eval 'erlang:display(erlang:system_info(otp_release)),halt().' -noshell | grep "^\"R" >/dev/null; then
-      erlang_otp16_or_less="yes"
-    fi
   fi
 fi
 AM_CONDITIONAL(WITH_ERLANG, [test "$have_erlang" = "yes"])
-AM_CONDITIONAL(ERLANG_OTP16, [test "$erlang_otp16_or_less" = "yes"])
 
 AX_THRIFT_LIB(nodejs, [Nodejs], yes)
 have_nodejs=no
@@ -366,24 +353,6 @@ fi
 AM_CONDITIONAL(WITH_RUBY, [test "$have_ruby" = "yes"])
 AM_CONDITIONAL(HAVE_BUNDLER, [test "x$BUNDLER" != "x"])
 
-AX_THRIFT_LIB(haskell, [Haskell], yes)
-have_haskell=no
-RUNHASKELL=true
-CABAL=true
-if test "$with_haskell" = "yes"; then
-  AC_PATH_PROG([CABAL], [cabal])
-  AC_PATH_PROG([RUNHASKELL], [runhaskell])
-  if test "x$CABAL" != "x" -a "x$RUNHASKELL" != "x"; then
-    have_haskell="yes"
-  else
-    RUNHASKELL=true
-    CABAL=true
-  fi
-fi
-AC_SUBST(CABAL)
-AC_SUBST(RUNHASKELL)
-AM_CONDITIONAL(WITH_HASKELL, [test "$have_haskell" = "yes"])
-
 AX_THRIFT_LIB(go, [Go], yes)
 if test "$with_go" = "yes";  then
   AC_PATH_PROG([GO], [go])
@@ -467,7 +436,7 @@ AX_THRIFT_LIB(haxe, [Haxe], yes)
 if test "$with_haxe" = "yes";  then
   AC_PATH_PROG([HAXE], [haxe])
   if [[ -x "$HAXE" ]] ; then
-    AX_PROG_HAXE_VERSION( [3.1.3], have_haxe="yes", have_haxe="no")
+    AX_PROG_HAXE_VERSION( [4.2.1], have_haxe="yes", have_haxe="no")
   fi
 fi
 AM_CONDITIONAL(WITH_HAXE, [test "$have_haxe" = "yes"])
@@ -778,8 +747,8 @@ AC_CONFIG_FILES([
   lib/erl/Makefile
   lib/go/Makefile
   lib/go/test/Makefile
+  lib/go/test/fuzz/Makefile
   lib/haxe/test/Makefile
-  lib/hs/Makefile
   lib/java/Makefile
   lib/js/Makefile
   lib/js/test/Makefile
@@ -797,6 +766,12 @@ AC_CONFIG_FILES([
   lib/rb/Makefile
   lib/rs/Makefile
   lib/rs/test/Makefile
+  lib/rs/test_recursive/Makefile
+  lib/rs/test_recursive/src/Makefile
+  lib/rs/test_recursive/src/maintenance/Makefile
+  lib/rs/test_recursive/src/transit/Makefile
+  lib/rs/test_recursive/src/transit/light/Makefile
+  lib/rs/test_recursive/src/transit/services/Makefile
   lib/lua/Makefile
   lib/swift/Makefile
   lib/ts/Makefile
@@ -810,7 +785,6 @@ AC_CONFIG_FILES([
   test/erl/Makefile
   test/go/Makefile
   test/haxe/Makefile
-  test/hs/Makefile
   test/lua/Makefile
   test/netstd/Makefile
   test/php/Makefile
@@ -828,7 +802,6 @@ AC_CONFIG_FILES([
   tutorial/d/Makefile
   tutorial/go/Makefile
   tutorial/haxe/Makefile
-  tutorial/hs/Makefile
   tutorial/java/Makefile
   tutorial/js/Makefile
   tutorial/netstd/Makefile
@@ -857,8 +830,6 @@ if test "$have_py3" = "yes" ; then MAYBE_PY3="py3" ; else MAYBE_PY3="" ; fi
 AC_SUBST([MAYBE_PY3])
 if test "$have_ruby" = "yes" ; then MAYBE_RUBY="rb" ; else MAYBE_RUBY="" ; fi
 AC_SUBST([MAYBE_RUBY])
-if test "$have_haskell" = "yes" ; then MAYBE_HASKELL="hs" ; else MAYBE_HASKELL="" ; fi
-AC_SUBST([MAYBE_HASKELL])
 if test "$have_perl" = "yes" ; then MAYBE_PERL="perl" ; else MAYBE_PERL="" ; fi
 AC_SUBST([MAYBE_PERL])
 if test "$have_php" = "yes" ; then MAYBE_PHP="php" ; else MAYBE_PHP="" ; fi
@@ -898,7 +869,6 @@ echo "Building Dart Library ........ : $have_dart"
 echo "Building .NET Standard Library : $have_netstd"
 echo "Building Erlang Library ...... : $have_erlang"
 echo "Building Go Library .......... : $have_go"
-echo "Building Haskell Library ..... : $have_haskell"
 echo "Building Haxe Library ........ : $have_haxe"
 echo "Building Java Library ........ : $have_java"
 echo "Building Lua Library ......... : $have_lua"
@@ -964,13 +934,6 @@ if test "$have_go" = "yes" ; then
   echo "Go Library:"
   echo "   Using Go................... : $GO"
   echo "   Using Go version........... : $($GO version)"
-fi
-if test "$have_haskell" = "yes" ; then
-  echo
-  echo "Haskell Library:"
-  echo "   Using Cabal ............... : $CABAL"
-  echo "   Using Haskell ............. : $RUNHASKELL"
-  echo "   Using Haskell version ..... : $($RUNHASKELL --version)"
 fi
 if test "$have_haxe" = "yes" ; then
   echo
