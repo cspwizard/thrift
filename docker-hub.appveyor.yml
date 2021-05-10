@@ -1,7 +1,7 @@
 version: 1.0.{build}
 branches:
   only:
-    - /^(release/)?\d+\.\d+\.\d+$/
+    - /^(release/)?\d+\.\d+\.\d+(-\w*)?$/
 image: Ubuntu
 clone_depth: 1
 environment:
