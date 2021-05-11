@@ -64,6 +64,7 @@ public:
     gen_zope_interface_ = false;
     gen_twisted_ = false;
     gen_dynamic_ = false;
+    gen_default_comparers_ = false;
     coding_ = "";
     gen_dynbaseclass_ = "";
     gen_dynbaseclass_exc_ = "";
@@ -124,6 +125,8 @@ public:
         gen_tornado_ = true;
       } else if( iter->first.compare("coding") == 0) {
         coding_ = iter->second;
+      } else if( iter->first.compare("default_comparers") == 0) {
+        gen_default_comparers_ = true;
       } else {
         throw "unknown option py:" + iter->first;
       }
@@ -310,6 +313,11 @@ private:
   std::string import_dynbase_;
 
   bool gen_slots_;
+
+  /**
+   * True if we should generate classes with default “rich comparison” methods. 
+   */
+  bool gen_default_comparers_;
 
   std::string copy_options_;
 
@@ -866,16 +874,18 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
         << indent() << indent_str() << "raise TypeError(\"can't modify immutable instance\")" << endl
         << endl;
 
-    // Hash all of the members in order, and also hash in the class
-    // to avoid collisions for stuff like single-field structures.
-    out << indent() << "def __hash__(self):" << endl
-        << indent() << indent_str() << "return hash(self.__class__) ^ hash((";
-
-    for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-      out << "self." << (*m_iter)->get_name() << ", ";
+    if (!gen_default_comparers_) {
+      // Hash all of the members in order, and also hash in the class
+      // to avoid collisions for stuff like single-field structures.
+      out << indent() << "def __hash__(self):" << endl
+          << indent() << indent_str() << "return hash(self.__class__) ^ hash((";
+  
+      for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+        out << "self." << (*m_iter)->get_name() << ", ";
+      }
+  
+      out << "))" << endl;
     }
-
-    out << "))" << endl;
   }
 
   if (!gen_dynamic_) {
@@ -905,19 +915,21 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
         << endl;
     indent_down();
 
-    // Equality and inequality methods that compare by value
-    out << indent() << "def __eq__(self, other):" << endl;
-    indent_up();
-    out << indent() << "return isinstance(other, self.__class__) and "
-                       "self.__dict__ == other.__dict__" << endl;
-    indent_down();
-    out << endl;
+    if (!gen_default_comparers_) {
+      // Equality and inequality methods that compare by value
+      out << indent() << "def __eq__(self, other):" << endl;
+      indent_up();
+      out << indent() << "return isinstance(other, self.__class__) and "
+                         "self.__dict__ == other.__dict__" << endl;
+      indent_down();
+      out << endl;
 
-    out << indent() << "def __ne__(self, other):" << endl;
-    indent_up();
+      out << indent() << "def __ne__(self, other):" << endl;
+      indent_up();
 
-    out << indent() << "return not (self == other)" << endl;
-    indent_down();
+      out << indent() << "return not (self == other)" << endl;
+      indent_down();
+	}
   } else if (!gen_dynamic_) {
     out << endl;
     // no base class available to implement __eq__ and __repr__ and __ne__ for us
@@ -930,22 +942,24 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
         << endl;
     indent_down();
 
-    // Equality method that compares each attribute by value and type, walking __slots__
-    out << indent() << "def __eq__(self, other):" << endl;
-    indent_up();
-    out << indent() << "if not isinstance(other, self.__class__):" << endl
-        << indent() << indent_str() << "return False" << endl
-        << indent() << "for attr in self.__slots__:" << endl
-        << indent() << indent_str() << "my_val = getattr(self, attr)" << endl
-        << indent() << indent_str() << "other_val = getattr(other, attr)" << endl
-        << indent() << indent_str() << "if my_val != other_val:" << endl
-        << indent() << indent_str() << indent_str() << "return False" << endl
-        << indent() << "return True" << endl
-        << endl;
-    indent_down();
+    if (!gen_default_comparers_) {
+      // Equality method that compares each attribute by value and type, walking __slots__
+      out << indent() << "def __eq__(self, other):" << endl;
+      indent_up();
+      out << indent() << "if not isinstance(other, self.__class__):" << endl
+          << indent() << indent_str() << "return False" << endl
+          << indent() << "for attr in self.__slots__:" << endl
+          << indent() << indent_str() << "my_val = getattr(self, attr)" << endl
+          << indent() << indent_str() << "other_val = getattr(other, attr)" << endl
+          << indent() << indent_str() << "if my_val != other_val:" << endl
+          << indent() << indent_str() << indent_str() << "return False" << endl
+          << indent() << "return True" << endl
+          << endl;
+      indent_down();
 
-    out << indent() << "def __ne__(self, other):" << endl
-        << indent() << indent_str() << "return not (self == other)" << endl;
+      out << indent() << "def __ne__(self, other):" << endl
+          << indent() << indent_str() << "return not (self == other)" << endl;
+    }
   }
   indent_down();
 }
@@ -2786,19 +2800,20 @@ string t_py_generator::type_to_spec_args(t_type* ttype) {
 THRIFT_REGISTER_GENERATOR(
     py,
     "Python",
-    "    zope.interface:  Generate code for use with zope.interface.\n"
-    "    twisted:         Generate Twisted-friendly RPC services.\n"
-    "    tornado:         Generate code for use with Tornado.\n"
-    "    no_utf8strings:  Do not Encode/decode strings using utf8 in the generated code. Basically no effect for Python 3.\n"
-    "    coding=CODING:   Add file encoding declare in generated file.\n"
-    "    slots:           Generate code using slots for instance members.\n"
-    "    dynamic:         Generate dynamic code, less code generated but slower.\n"
-    "    dynbase=CLS      Derive generated classes from class CLS instead of TBase.\n"
-    "    dynfrozen=CLS    Derive generated immutable classes from class CLS instead of TFrozenBase.\n"
-    "    dynexc=CLS       Derive generated exceptions from CLS instead of TExceptionBase.\n"
-    "    dynfrozenexc=CLS Derive generated immutable exceptions from CLS instead of TFrozenExceptionBase.\n"
+    "    zope.interface:    Generate code for use with zope.interface.\n"
+    "    twisted:           Generate Twisted-friendly RPC services.\n"
+    "    tornado:           Generate code for use with Tornado.\n"
+    "    no_utf8strings:    Do not Encode/decode strings using utf8 in the generated code. Basically no effect for Python 3.\n"
+    "    coding=CODING:     Add file encoding declare in generated file.\n"
+    "    slots:             Generate code using slots for instance members.\n"
+    "    dynamic:           Generate dynamic code, less code generated but slower.\n"
+    "    dynbase=CLS        Derive generated classes from class CLS instead of TBase.\n"
+    "    dynfrozen=CLS      Derive generated immutable classes from class CLS instead of TFrozenBase.\n"
+    "    dynexc=CLS         Derive generated exceptions from CLS instead of TExceptionBase.\n"
+    "    dynfrozenexc=CLS   Derive generated immutable exceptions from CLS instead of TFrozenExceptionBase.\n"
     "    dynimport='from foo.bar import CLS'\n"
-    "                     Add an import line to generated code to find the dynbase class.\n"
+    "                       Add an import line to generated code to find the dynbase class.\n"
     "    package_prefix='top.package.'\n"
-    "                     Package prefix for generated files.\n"
-    "    old_style:       Deprecated. Generate old-style classes.\n")
+    "                       Package prefix for generated files.\n"
+    "    old_style:         Deprecated. Generate old-style classes.\n"
+    "    default_comparers: Generate classes with default comparers (not implemented __eq__ and __ne__)\n")
