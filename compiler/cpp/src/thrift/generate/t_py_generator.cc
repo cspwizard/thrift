@@ -315,7 +315,7 @@ private:
   bool gen_slots_;
 
   /**
-   * True if we should generate classes with default “rich comparison” methods. 
+   * True if we should generate classes with default “rich comparison” methods.
    */
   bool gen_default_comparers_;
 
@@ -879,11 +879,11 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
       // to avoid collisions for stuff like single-field structures.
       out << indent() << "def __hash__(self):" << endl
           << indent() << indent_str() << "return hash(self.__class__) ^ hash((";
-  
+
       for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
         out << "self." << (*m_iter)->get_name() << ", ";
       }
-  
+
       out << "))" << endl;
     }
   }
@@ -929,6 +929,14 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
 
       out << indent() << "return not (self == other)" << endl;
       indent_down();
+	} else {
+      // Equality method that compare by value
+      out << indent() << "def equals(self, other):" << endl;
+      indent_up();
+      out << indent() << "return isinstance(other, self.__class__) and "
+                         "self.__dict__ == other.__dict__" << endl;
+      indent_down();
+      out << endl;
 	}
   } else if (!gen_dynamic_) {
     out << endl;
@@ -959,6 +967,20 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
 
       out << indent() << "def __ne__(self, other):" << endl
           << indent() << indent_str() << "return not (self == other)" << endl;
+    } else {
+      // Equality method that compares each attribute by value and type, walking __slots__
+      out << indent() << "def equals(self, other):" << endl;
+      indent_up();
+      out << indent() << "if not isinstance(other, self.__class__):" << endl
+          << indent() << indent_str() << "return False" << endl
+          << indent() << "for attr in self.__slots__:" << endl
+          << indent() << indent_str() << "my_val = getattr(self, attr)" << endl
+          << indent() << indent_str() << "other_val = getattr(other, attr)" << endl
+          << indent() << indent_str() << "if my_val != other_val:" << endl
+          << indent() << indent_str() << indent_str() << "return False" << endl
+          << indent() << "return True" << endl
+          << endl;
+      indent_down();
     }
   }
   indent_down();
@@ -995,7 +1017,7 @@ void t_py_generator::generate_py_struct_reader(ostream& out, t_struct* tstruct) 
   indent_down();
 
   indent(out) << "iprot.readStructBegin()" << endl;
-  
+
   if (is_immutable(tstruct)) {
     for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
       t_field* tfield = *f_iter;
