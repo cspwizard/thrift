@@ -976,8 +976,15 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
           << indent() << "for attr in self.__slots__:" << endl
           << indent() << indent_str() << "my_val = getattr(self, attr)" << endl
           << indent() << indent_str() << "other_val = getattr(other, attr)" << endl
-          << indent() << indent_str() << "if my_val != other_val:" << endl
-          << indent() << indent_str() << indent_str() << "return False" << endl
+          << indent() << indent_str() << "equals_op = getattr(my_val, 'equals', None)" << endl
+          << indent() << indent_str() << "if my_val == other_val:" << endl
+          << indent() << indent_str() << indent_str() << "continue" << endl
+          << indent() << indent_str() << "if my_val is not None and other_val is not None:" << endl
+          << indent() << indent_str() << indent_str() << "equals_op = getattr(my_val, 'equals', None)" << endl
+          << indent() << indent_str() << indent_str() << "if equals_op is not None and callable(equals_op):" << endl
+          << indent() << indent_str() << indent_str() << indent_str() << "if my_val.equals(other_val):" << endl
+          << indent() << indent_str() << indent_str() << indent_str() << indent_str() <<"continue" << endl
+          << indent() << indent_str() << "return False" << endl
           << indent() << "return True" << endl
           << endl;
       indent_down();
