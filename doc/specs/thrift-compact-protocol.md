@@ -120,6 +120,15 @@ Booleans are encoded differently depending on whether it is a field value (in a 
 list or map). Field values are encoded directly in the field header. Element values of type `bool` are sent as an int8;
 true as `1` and false as `0`.
 
+### Universal unique identifier encoding
+
+Values of `uuid` type are expected as 16-byte binary in big endian (or "network") order. Byte order conversion 
+might be necessary on certain platforms, e.g. Windows holds GUIDs in a complex record-like structure whose 
+memory layout differs.
+
+*Note*: Since the length is fixed, no `byte length` prefix is necessary and the field is always 16 bytes long.
+
+
 ## Message
 
 A `Message` on the wire looks as follows:
@@ -205,7 +214,7 @@ The following field-types can be encoded:
 
 * `BOOLEAN_TRUE`, encoded as `1`
 * `BOOLEAN_FALSE`, encoded as `2`
-* `BYTE`, encoded as `3`
+* `I8`, encoded as `3`
 * `I16`, encoded as `4`
 * `I32`, encoded as `5`
 * `I64`, encoded as `6`
@@ -215,6 +224,7 @@ The following field-types can be encoded:
 * `SET`, encoded as `10`
 * `MAP`, encoded as `11`
 * `STRUCT`, used for both structs and union fields, encoded as `12`
+* `UUID`, encoded as `13`
 
 Note that because there are 2 specific field types for the boolean values, the encoding of a boolean field value has no
 length (0 bytes).
@@ -245,20 +255,23 @@ Where:
 
 The short form should be used when the length is in the range 0 - 14 (inclusive).
 
-The following element-types are used (note that these are _different_ from the field-types):
+The following element-types are used (see note below):
 
 * `BOOL`, encoded as `2`
-* `BYTE`, encoded as `3`
-* `DOUBLE`, encoded as `4`
-* `I16`, encoded as `6`
-* `I32`, encoded as `8`
-* `I64`, encoded as `10`
-* `STRING`, used for binary and string fields, encoded as `11`
+* `I8`, encoded as `3`
+* `I16`, encoded as `4`
+* `I32`, encoded as `5`
+* `I64`, encoded as `6`
+* `DOUBLE`, encoded as `7`
+* `BINARY`, used for binary and string fields, encoded as `8`
+* `LIST`, encoded as `9`
+* `SET`, encoded as `10`
+* `MAP`, encoded as `11`
 * `STRUCT`, used for structs and union fields, encoded as `12`
-* `MAP`, encoded as `13`
-* `SET`, encoded as `14`
-* `LIST`, encoded as `15`
+* `UUID`, encoded as `13`
 
+*Note*: Although field-types and element-types lists are currently very similar, there is _no guarantee_ that this will
+remain true after new types are added.
 
 The maximum list/set size is configurable. By default there is no limit (meaning the limit is the maximum int32 value:
 2147483647).
