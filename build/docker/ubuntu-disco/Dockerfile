@@ -89,18 +89,6 @@ RUN apt-get install -y --no-install-recommends \
       qtbase5-dev \
       qtbase5-dev-tools
 
-ENV SBCL_VERSION 1.5.3
-RUN \
-`# Common Lisp (sbcl) dependencies` \
-    curl --version && \
-    curl -o sbcl-${SBCL_VERSION}-x86-64-linux-binary.tar.bz2 -J -L https://sourceforge.net/projects/sbcl/files/sbcl/${SBCL_VERSION}/sbcl-${SBCL_VERSION}-x86-64-linux-binary.tar.bz2/download?use_mirror=managedway# && \
-    tar xjf sbcl-${SBCL_VERSION}-x86-64-linux-binary.tar.bz2 && \
-    cd sbcl-${SBCL_VERSION}-x86-64-linux && \
-    ./install.sh && \
-    sbcl --version && \
-    cd .. && \
-    rm -rf sbcl*
-
 ENV D_VERSION     2.087.0
 ENV DMD_DEB       dmd_2.087.0-0_amd64.deb
 RUN \
@@ -143,9 +131,9 @@ RUN apt-get install -y --no-install-recommends \
       libglib2.0-dev
 
 # golang
-ENV GOLANG_VERSION 1.17.6
+ENV GOLANG_VERSION 1.19
 ENV GOLANG_DOWNLOAD_URL https://go.dev/dl/go$GOLANG_VERSION.linux-amd64.tar.gz
-ENV GOLANG_DOWNLOAD_SHA256 231654bbf2dab3d86c1619ce799e77b03d96f9b50770297c8f4dff8836fc8ca2
+ENV GOLANG_DOWNLOAD_SHA256 464b6b66591f6cf055bc5df90a9750bf5fbc9d038722bb84a9d56a2bea974be6
 RUN curl -fsSL "$GOLANG_DOWNLOAD_URL" -o golang.tar.gz && \
       echo "$GOLANG_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - && \
             tar -C /usr/local -xzf golang.tar.gz && \
@@ -160,12 +148,19 @@ RUN apt-get install -y --no-install-recommends \
     haxelib setup --always /usr/share/haxe/lib && \
     haxelib install --always hxcpp 2>&1 > /dev/null
 
+ENV GRADLE_VERSION="7.4.2"
 RUN apt-get install -y --no-install-recommends \
 `# Java dependencies` \
       ant \
       ant-optional \
       maven \
-      openjdk-11-jdk-headless
+      openjdk-11-jdk-headless && \
+`# Gradle` \
+      wget https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip -q -O /tmp/gradle-$GRADLE_VERSION-bin.zip && \
+      (echo "29e49b10984e585d8118b7d0bc452f944e386458df27371b49b4ac1dec4b7fda  /tmp/gradle-$GRADLE_VERSION-bin.zip" | sha256sum -c -) && \
+      unzip -d /tmp /tmp/gradle-$GRADLE_VERSION-bin.zip && \
+      mv /tmp/gradle-$GRADLE_VERSION /usr/local/gradle && \
+      ln -s /usr/local/gradle/bin/gradle /usr/local/bin
 
 RUN apt-get install -y --no-install-recommends \
 `# Lua dependencies` \
