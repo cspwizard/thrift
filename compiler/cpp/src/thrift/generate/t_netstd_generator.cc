@@ -1528,7 +1528,7 @@ void t_netstd_generator::generate_netstd_union_definition(ostream& out, t_struct
         indent_up();
         for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter)
         {
-            string null_coalesce(is_nullable_type((*f_iter)->get_type()) ? "?" : "");  
+            string null_coalesce(is_nullable_type((*f_iter)->get_type()) ? "?" : "");
             out << indent() << (*f_iter)->get_key() << " => As_" << (*f_iter)->get_name() << null_coalesce << ".GetHashCode()";
             if( null_coalesce.size() > 0) {
               out << " ?? 0";
@@ -1544,7 +1544,7 @@ void t_netstd_generator::generate_netstd_union_definition(ostream& out, t_struct
         indent_up();
         for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter)
         {
-            string null_coalesce(is_nullable_type((*f_iter)->get_type()) ? "?" : "");  
+            string null_coalesce(is_nullable_type((*f_iter)->get_type()) ? "?" : "");
             out << indent() << "case " << (*f_iter)->get_key() << ":" << endl;
             indent_up();
             out << indent() << "return As_" << (*f_iter)->get_name() << null_coalesce << ".GetHashCode()";
@@ -2430,10 +2430,10 @@ void t_netstd_generator::generate_process_function_async(ostream& out, t_service
     indent_up();
 
     string tmpvar = tmp("tmp");
-    out << indent() << "var " << tmpvar << " = $\"Error occurred in {GetType().FullName}: {" << tmpex << ".Message}\";" << endl;
+    out << indent() << "var " << tmpvar << " = $\"Error occurred in {GetType().FullName}: " << tfunction->get_name() << " : {" << tmpex << ".Message}\";" << endl;
     out << indent() << "if(_logger != null)" << endl;
     indent_up();
-    out << indent() << "_logger.LogError(\"{Exception}, {Message}\", " << tmpex << ", " << tmpvar << ");" << endl;
+    out << indent() << "_logger.LogError(" << tmpex << ", " << tmpvar << ");" << endl;
     indent_down();
     out << indent() << "else" << endl;
     indent_up();
@@ -3266,7 +3266,7 @@ string t_netstd_generator::nullable_field_suffix(t_field* tfield) {
   else
     return nullable_field_suffix(tfield->get_type());
 }
-  
+
 
 string t_netstd_generator::nullable_field_suffix(t_type* ttype) {
   if( ! use_net6_features) {
@@ -3320,9 +3320,9 @@ string t_netstd_generator::nullable_value_access(t_type* ttype) {
 }
 
 bool t_netstd_generator::force_member_nullable(t_field* tfield) {
-  // IMPORTANT: 
+  // IMPORTANT:
   // If tfield is a struct that contains a required field of the same type (directly or indirectly),
-  // auto-initializing such a member field would immediately produce an OOM, or at least unexpectedly 
+  // auto-initializing such a member field would immediately produce an OOM, or at least unexpectedly
   // allocate potentially large amounts of memory -> ALWAYS leave containers and struct members nullable
   t_type* ttype = resolve_typedef(tfield->get_type());
   return ttype->is_struct() || ttype->is_container();
@@ -3442,23 +3442,23 @@ string t_netstd_generator::get_deep_copy_method_call(t_type* ttype, bool is_not_
     }
     else if (is_union_enabled() && ttype->is_struct() && static_cast<t_struct*>(ttype)->is_union())
     {
-        needs_typecast = (! ttype->is_container());        
+        needs_typecast = (! ttype->is_container());
         suffix = nullable_suffix();
         if( use_net6_features) {
             null_check = is_not_null ? "!" : " ?? new "+ttype->get_name() +".___undefined()";
-        }        
+        }
         return "." + DEEP_COPY_METHOD_NAME + "()" + null_check;
     }
     else
     {
-        needs_typecast = (! ttype->is_container());        
+        needs_typecast = (! ttype->is_container());
         suffix = nullable_suffix();
         if( use_net6_features) {
             null_check = is_not_null ? "!" : " ?? new()";
-        }        
+        }
         return "." + DEEP_COPY_METHOD_NAME + "()" + null_check;
     }
-    
+
     throw "UNEXPECTED TYPE IN get_deep_copy_method_call: " + ttype->get_name();
 }
 
@@ -3480,8 +3480,8 @@ string t_netstd_generator::declare_field(t_field* tfield, bool init, bool allow_
 string t_netstd_generator::initialize_field(t_field* tfield)
 {
     t_type* ttype = tfield->get_type();
-    ttype = resolve_typedef(ttype);    
-    
+    ttype = resolve_typedef(ttype);
+
     if (ttype->is_base_type() && field_has_default(tfield))
     {
         std::ofstream dummy;
@@ -3540,7 +3540,7 @@ string t_netstd_generator::initialize_field(t_field* tfield)
     }
     else if (ttype->is_struct())
     {
-        t_struct* tstruct = static_cast<t_struct*>(ttype);        
+        t_struct* tstruct = static_cast<t_struct*>(ttype);
         if(use_net6_features) {
             if(tstruct->is_union()) {
                 return " = new " + type_name(ttype) + ".___undefined()";
@@ -3551,7 +3551,7 @@ string t_netstd_generator::initialize_field(t_field* tfield)
             return " = new " + type_name(ttype) + "()";
         }
     }
-    
+
     throw "UNEXPECTED TYPE IN initialize_field: " + ttype->get_name();
 }
 
