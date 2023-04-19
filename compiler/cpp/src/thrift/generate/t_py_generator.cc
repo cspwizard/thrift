@@ -490,6 +490,8 @@ string t_py_generator::py_imports() {
      << "from thrift.protocol.TProtocol import TProtocolException" << endl
      << "from thrift.TRecursive import fix_spec" << endl;
 
+     << endl
+     << "from uuid import UUID"
   if (gen_utf8strings_) {
     ss << endl << "import sys";
   }
@@ -543,6 +545,7 @@ void t_py_generator::generate_enum(t_enum* tenum) {
            << (base_class.empty() ? "" : "(" + base_class + ")")
            << ":"
            << endl;
+
   indent_up();
   generate_python_docstring(f_types_, tenum);
 
@@ -616,6 +619,9 @@ string t_py_generator::render_const_value(t_type* type, t_const_value* value) {
       } else {
         out << emit_double_as_string(value->get_double());
       }
+      break;
+    case t_base_type::TYPE_UUID:
+      out << "UUID(\"" << get_escaped_string(value) << "\")";
       break;
     default:
       throw "compiler error: no const of base type " + t_base_type::t_base_name(tbase);
@@ -2353,6 +2359,9 @@ void t_py_generator::generate_deserialize_field(ostream& out, t_field* tfield, s
       case t_base_type::TYPE_DOUBLE:
         out << "readDouble()";
         break;
+      case t_base_type::TYPE_UUID:
+        out << "readUuid()";
+        break;
       default:
         throw "compiler error: no Python name for base type " + t_base_type::t_base_name(tbase);
       }
@@ -2541,6 +2550,9 @@ void t_py_generator::generate_serialize_field(ostream& out, t_field* tfield, str
         break;
       case t_base_type::TYPE_DOUBLE:
         out << "writeDouble(" << name << ")";
+        break;
+      case t_base_type::TYPE_UUID:
+        out << "writeUuid(" << name << ")";
         break;
       default:
         throw "compiler error: no Python name for base type " + t_base_type::t_base_name(tbase);
@@ -2878,10 +2890,10 @@ string t_py_generator::type_to_py_type(t_type* type) {
       return "int";
     case t_base_type::TYPE_DOUBLE:
       return "float";
+    case t_base_type::TYPE_UUID:
+      return "UUID";
     }
-  } else if (type->is_enum()) {
-    return type_name(type);
-  } else if (type->is_struct() || type->is_xception()) {
+  } else if (type->is_enum() || type->is_struct() || type->is_xception()) {
     return type_name(type);
   } else if (type->is_map()) {
     return "dict[" + type_to_py_type(((t_map*)type)->get_key_type()) + ", "
@@ -2920,6 +2932,8 @@ string t_py_generator::type_to_enum(t_type* type) {
       return "TType.I64";
     case t_base_type::TYPE_DOUBLE:
       return "TType.DOUBLE";
+    case t_base_type::TYPE_UUID:
+      return "TType.UUID";
     default:
       throw "compiler error: unhandled type";
     }
