@@ -73,10 +73,12 @@ public:
     gen_dynbaseclass_frozen_ = "";
     import_dynbase_ = "";
     package_prefix_ = "";
-    for( iter = parsed_options.begin(); iter != parsed_options.end(); ++iter) {
-      if( iter->first.compare("new_style") == 0) {
-        pwarning(0, "new_style is enabled by default, so the option will be removed in the near future.\n");
-      } else if( iter->first.compare("old_style") == 0) {
+    for (iter = parsed_options.begin(); iter != parsed_options.end(); ++iter) {
+      if (iter->first.compare("new_style") == 0) {
+        pwarning(
+            0,
+            "new_style is enabled by default, so the option will be removed in the near future.\n");
+      } else if (iter->first.compare("old_style") == 0) {
         gen_newstyle_ = false;
         pwarning(0, "old_style is deprecated and may be removed in the future.\n");
       } else if (iter->first.compare("utf8strings") == 0) {
@@ -255,7 +257,9 @@ public:
   std::string declare_argument(t_field* tfield);
   std::string render_field_default_value(t_field* tfield);
   std::string type_name(t_type* ttype);
-  std::string function_signature(t_function* tfunction, bool interface = false, bool send_part = false);
+  std::string function_signature(t_function* tfunction,
+                                 bool interface = false,
+                                 bool send_part = false);
   std::string argument_list(t_struct* tstruct,
                             std::vector<std::string>* pre = nullptr,
                             std::vector<std::string>* post = nullptr);
@@ -288,7 +292,8 @@ public:
   }
 
   static bool is_immutable(t_type* ttype) {
-    std::map<std::string, std::vector<std::string>>::iterator it = ttype->annotations_.find("python.immutable");
+    std::map<std::string, std::vector<std::string>>::iterator it
+        = ttype->annotations_.find("python.immutable");
 
     if (it == ttype->annotations_.end()) {
       // Exceptions are immutable by default.
@@ -488,10 +493,9 @@ string t_py_generator::py_imports() {
         "TApplicationException"
      << endl
      << "from thrift.protocol.TProtocol import TProtocolException" << endl
-     << "from thrift.TRecursive import fix_spec" << endl;
+     << "from thrift.TRecursive import fix_spec" << endl
+     << "from uuid import UUID" << endl;
 
-     << endl
-     << "from uuid import UUID"
   if (gen_utf8strings_) {
     ss << endl << "import sys";
   }
@@ -541,10 +545,8 @@ void t_py_generator::generate_enum(t_enum* tenum) {
 
   f_types_ << endl
            << endl
-           << "class " << tenum->get_name()
-           << (base_class.empty() ? "" : "(" + base_class + ")")
-           << ":"
-           << endl;
+           << "class " << tenum->get_name() << (base_class.empty() ? "" : "(" + base_class + ")")
+           << ":" << endl;
 
   indent_up();
   generate_python_docstring(f_types_, tenum);
@@ -569,7 +571,7 @@ void t_py_generator::generate_enum(t_enum* tenum) {
 
   indent_down();
   f_types_ << endl;
-  if(!gen_type_hints_) {
+  if (!gen_type_hints_) {
     f_types_ << to_string_mapping.str() << endl << from_string_mapping.str();
   }
 }
@@ -780,12 +782,10 @@ void t_py_generator::generate_py_thrift_spec(ostream& out,
       }
 
       indent(out) << "(" << (*m_iter)->get_key() << ", " << type_to_enum((*m_iter)->get_type())
-                  << ", "
-                  << "'" << (*m_iter)->get_name() << "'"
-                  << ", " << type_to_spec_args((*m_iter)->get_type()) << ", "
-                  << render_field_default_value(*m_iter) << ", "
-                  << "),"
-                  << "  # " << sorted_keys_pos << endl;
+                  << ", " << "'" << (*m_iter)->get_name() << "'" << ", "
+                  << type_to_spec_args((*m_iter)->get_type()) << ", "
+                  << render_field_default_value(*m_iter) << ", " << ")," << "  # "
+                  << sorted_keys_pos << endl;
 
       sorted_keys_pos++;
     }
@@ -885,8 +885,8 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
       // Initialize fields
       t_type* type = (*m_iter)->get_type();
       if (!type->is_base_type() && !type->is_enum() && (*m_iter)->get_value() != nullptr) {
-        indent(out) << "if " << (*m_iter)->get_name() << " is "
-                    << "self.thrift_spec[" << (*m_iter)->get_key() << "][4]:" << endl;
+        indent(out) << "if " << (*m_iter)->get_name() << " is " << "self.thrift_spec["
+                    << (*m_iter)->get_key() << "][4]:" << endl;
         indent_up();
         indent(out) << (*m_iter)->get_name() << " = " << render_field_default_value(*m_iter)
                     << endl;
@@ -894,11 +894,11 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
       }
 
       if (is_immutable(tstruct)) {
-        if (gen_enum_ && type->is_enum()) {
+        if (gen_type_hints_ && type->is_enum()) {
           indent(out) << "super(" << tstruct->get_name() << ", self).__setattr__('"
-                      << (*m_iter)->get_name() << "', " << (*m_iter)->get_name()
-                      << " if hasattr("  << (*m_iter)->get_name() << ", 'value') else "
-                      << type_name(type) << ".__members__.get(" << (*m_iter)->get_name() << "))" << endl;
+                      << (*m_iter)->get_name() << "', " << (*m_iter)->get_name() << " if hasattr("
+                      << (*m_iter)->get_name() << ", 'value') else " << type_name(type)
+                      << ".__members__.get(" << (*m_iter)->get_name() << "))" << endl;
         } else if (gen_newstyle_ || gen_dynamic_) {
           indent(out) << "super(" << tstruct->get_name() << ", self).__setattr__('"
                       << (*m_iter)->get_name() << "', " << (*m_iter)->get_name() << ")" << endl;
@@ -907,8 +907,9 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
                       << "'] = " << (*m_iter)->get_name() << endl;
         }
       } else {
-        indent(out) << "self." << (*m_iter)->get_name() << member_hint((*m_iter)->get_type(), (*m_iter)->get_req())
-                    << " = " << (*m_iter)->get_name() << endl;
+        indent(out) << "self." << (*m_iter)->get_name()
+                    << member_hint((*m_iter)->get_type(), (*m_iter)->get_req()) << " = "
+                    << (*m_iter)->get_name() << endl;
       }
     }
 
@@ -926,11 +927,10 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
     // trivial because we know which fields are user-provided, without slots we need to build a
     // way to know which fields are user-provided.
     if (gen_slots_ && !gen_dynamic_) {
-        out << indent() << "if args[0] not in self.__slots__:" << endl;
-        indent_up();
-        out << indent() << "super().__setattr__(*args)" << endl
-            << indent() << "return" << endl;
-        indent_down();
+      out << indent() << "if args[0] not in self.__slots__:" << endl;
+      indent_up();
+      out << indent() << "super().__setattr__(*args)" << endl << indent() << "return" << endl;
+      indent_down();
     }
     out << indent() << "raise TypeError(\"can't modify immutable instance\")" << endl;
     indent_down();
@@ -944,11 +944,10 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
     // trivial because we know which fields are user-provided, without slots we need to build a
     // way to know which fields are user-provided.
     if (gen_slots_ && !gen_dynamic_) {
-        out << indent() << "if args[0] not in self.__slots__:" << endl;
-        indent_up();
-        out << indent() << "super().__delattr__(*args)" << endl
-            << indent() << "return" << endl;
-        indent_down();
+      out << indent() << "if args[0] not in self.__slots__:" << endl;
+      indent_up();
+      out << indent() << "super().__delattr__(*args)" << endl << indent() << "return" << endl;
+      indent_down();
     }
     out << indent() << "raise TypeError(\"can't modify immutable instance\")" << endl;
     indent_down();
@@ -965,32 +964,33 @@ void t_py_generator::generate_py_struct_definition(ostream& out,
       }
 
       out << "))" << endl;
-  } else if (gen_enum_) {
-    bool has_enum = false;
-    for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-      t_type* type = (*m_iter)->get_type();
-      if (type->is_enum()) {
-        has_enum = true;
-        break;
-      }
-    }
-
-    if (has_enum) {
-      out << endl;
-      indent(out) << "def __setattr__(self, name, value):" << endl;
-      indent_up();
+    } else if (gen_type_hints_) {
+      bool has_enum = false;
       for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
         t_type* type = (*m_iter)->get_type();
         if (type->is_enum()) {
-          out << indent() << "if name == \"" << (*m_iter)->get_name() << "\":" << endl
-              << indent() << indent_str() << "super().__setattr__(name, value if hasattr(value, 'value') else "
-              << type_name(type) << ".__members__.get(value))" << endl
-              << indent() << indent_str() << "return" << endl;
+          has_enum = true;
+          break;
         }
       }
-      indent(out) << "super().__setattr__(name, value)" << endl << endl;
-      indent_down();
-    }
+
+      if (has_enum) {
+        out << endl;
+        indent(out) << "def __setattr__(self, name, value):" << endl;
+        indent_up();
+        for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+          t_type* type = (*m_iter)->get_type();
+          if (type->is_enum()) {
+            out << indent() << "if name == \"" << (*m_iter)->get_name() << "\":" << endl
+                << indent() << indent_str()
+                << "super().__setattr__(name, value if hasattr(value, 'value') else "
+                << type_name(type) << ".__members__.get(value))" << endl
+                << indent() << indent_str() << "return" << endl;
+          }
+        }
+        indent(out) << "super().__setattr__(name, value)" << endl << endl;
+        indent_down();
+      }
     }
   }
 
@@ -1237,9 +1237,9 @@ void t_py_generator::generate_py_struct_writer(ostream& out, t_struct* tstruct) 
     // Write field header
     indent(out) << "if self." << (*f_iter)->get_name() << " is not None:" << endl;
     indent_up();
-    indent(out) << "oprot.writeFieldBegin("
-                << "'" << (*f_iter)->get_name() << "', " << type_to_enum((*f_iter)->get_type())
-                << ", " << (*f_iter)->get_key() << ")" << endl;
+    indent(out) << "oprot.writeFieldBegin(" << "'" << (*f_iter)->get_name() << "', "
+                << type_to_enum((*f_iter)->get_type()) << ", " << (*f_iter)->get_key() << ")"
+                << endl;
 
     // Write field contents
     generate_serialize_field(out, *f_iter, "self.");
@@ -2427,7 +2427,7 @@ void t_py_generator::generate_deserialize_field(ostream& out, t_field* tfield, s
     }
     out << endl;
   } else if (type->is_enum()) {
-    if(gen_type_hints_) {
+    if (gen_type_hints_) {
       indent(out) << name << " = " << type_name(type) << "(iprot.readI32())" << endl;
     } else {
       indent(out) << name << " = iprot.readI32()" << endl;
@@ -2646,15 +2646,14 @@ void t_py_generator::generate_serialize_struct(ostream& out, t_struct* tstruct, 
 void t_py_generator::generate_serialize_container(ostream& out, t_type* ttype, string prefix) {
   if (ttype->is_map()) {
     indent(out) << "oprot.writeMapBegin(" << type_to_enum(((t_map*)ttype)->get_key_type()) << ", "
-                << type_to_enum(((t_map*)ttype)->get_val_type()) << ", "
-                << "len(" << prefix << "))" << endl;
+                << type_to_enum(((t_map*)ttype)->get_val_type()) << ", " << "len(" << prefix << "))"
+                << endl;
   } else if (ttype->is_set()) {
     indent(out) << "oprot.writeSetBegin(" << type_to_enum(((t_set*)ttype)->get_elem_type()) << ", "
                 << "len(" << prefix << "))" << endl;
   } else if (ttype->is_list()) {
     indent(out) << "oprot.writeListBegin(" << type_to_enum(((t_list*)ttype)->get_elem_type())
-                << ", "
-                << "len(" << prefix << "))" << endl;
+                << ", " << "len(" << prefix << "))" << endl;
   }
 
   if (ttype->is_map()) {
@@ -2897,7 +2896,7 @@ string t_py_generator::type_name(t_type* ttype) {
 
 string t_py_generator::arg_hint(t_type* type) {
   if (gen_type_hints_) {
-      return ": " + type_to_py_type(type);
+    return ": " + type_to_py_type(type);
   }
 
   return "";
@@ -2905,12 +2904,11 @@ string t_py_generator::arg_hint(t_type* type) {
 
 string t_py_generator::member_hint(t_type* type, t_field::e_req req) {
   if (gen_type_hints_) {
-      if (req != t_field::T_REQUIRED) {
-        return ": typing.Optional[" + type_to_py_type(type) + "]";
-      }
-      else {
-        return ": " + type_to_py_type(type);
-      }
+    if (req != t_field::T_REQUIRED) {
+      return ": typing.Optional[" + type_to_py_type(type) + "]";
+    } else {
+      return ": " + type_to_py_type(type);
+    }
   }
 
   return "";
@@ -2918,7 +2916,7 @@ string t_py_generator::member_hint(t_type* type, t_field::e_req req) {
 
 string t_py_generator::func_hint(t_type* type) {
   if (gen_type_hints_) {
-      return " -> " + type_to_py_type(type);
+    return " -> " + type_to_py_type(type);
   }
 
   return "";
@@ -3051,7 +3049,6 @@ std::string t_py_generator::display_name() const {
   return "Python";
 }
 
-
 THRIFT_REGISTER_GENERATOR(
     py,
     "Python",
@@ -3075,4 +3072,5 @@ THRIFT_REGISTER_GENERATOR(
     "                       Package prefix for generated files.\n"
     "    old_style:         Deprecated. Generate old-style classes.\n"
     "    type_hints:        Generate type hints and type checks in write method.\n"
-    "    default_comparers: Generate classes with default comparers (not implemented __eq__ and __ne__)\n")
+    "    default_comparers: Generate classes with default comparers (not implemented __eq__ and "
+    "__ne__)\n")
