@@ -2509,10 +2509,10 @@ void t_netstd_generator::generate_process_function_async(ostream& out, t_service
     indent_up();
 
     string tmpvar = tmp("tmp");
-    out << indent() << "var " << tmpvar << " = $\"Error occurred in {GetType().FullName}: {" << tmpex << ".Message}\";" << endl;
+    out << indent() << "var " << tmpvar << " = $\"Error occurred in {GetType().FullName}: " << tfunction->get_name() << " : {" << tmpex << ".Message}\";" << endl;
     out << indent() << "if(_logger != null)" << endl;
     indent_up();
-    out << indent() << "_logger.LogError(\"{Exception}, {Message}\", " << tmpex << ", " << tmpvar << ");" << endl;
+    out << indent() << "_logger.LogError(" << tmpex << ", " << tmpvar << ");" << endl;
     indent_down();
     out << indent() << "else" << endl;
     indent_up();
