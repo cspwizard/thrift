@@ -1,5 +1,8 @@
 # How to Contribute #
 
+
+
+
 Thank you for your interest in contributing to the Apache Thrift project!  Information on why and how to contribute is available on the Apache Software Foundation (ASF) web site. In particular, we recommend the following to become acquainted with Apache Contributions:
 
  * [Contributors Tech Guide](http://www.apache.org/dev/contributors)
